@@ -26,10 +26,12 @@ $env:PATH = "$Here\.venv\Scripts;$env:PATH"
 & .\scripts\build_llamacpp.ps1 -Backend $Backend
 
 Write-Host "== [3/4] probing this machine =="
+if ($RpcHost -eq "") {
+  $RpcHost = (& .\.venv\Scripts\python.exe scripts/probe.py --print-ip).Trim()
+  Write-Host ">> detected LAN IP: $RpcHost  (override with -RpcHost if this is wrong)"
+}
 $Out = "node_$($env:COMPUTERNAME).json"
-$hostArgs = @()
-if ($RpcHost -ne "") { $hostArgs += @("--rpc-host", $RpcHost) }
-& .\.venv\Scripts\python.exe scripts/probe.py @hostArgs --rpc-port $RpcPort --out $Out
+& .\.venv\Scripts\python.exe scripts/probe.py --rpc-host $RpcHost --rpc-port $RpcPort --out $Out
 Write-Host ">> wrote $Out (copy to the coordinator; merge all node_*.json into nodes.json)"
 
 Write-Host "== [4/4] next steps =="

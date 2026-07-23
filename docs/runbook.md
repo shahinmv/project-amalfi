@@ -38,20 +38,21 @@ Install: `git`, `cmake`, a C/C++ build toolchain, and `python3` (3.9+).
 
 ### Windows — one command does everything (installs too)
 
-Open **PowerShell as Administrator** and run **one** of these:
+Open **PowerShell as Administrator** and run **one** of these — no IP needed, it auto-detects:
 
 ```powershell
 # fresh laptop (installs Git, clones, sets up):
-& ([scriptblock]::Create((irm https://raw.githubusercontent.com/shahinmv/project-amalfi/main/scripts/setup_windows.ps1))) -RpcHost <THIS-LAPTOP-LAN-IP>
+& ([scriptblock]::Create((irm https://raw.githubusercontent.com/shahinmv/project-amalfi/main/scripts/setup_windows.ps1)))
 
 # already cloned the repo:
-powershell -ExecutionPolicy Bypass -File scripts\setup_windows.ps1 -RpcHost <THIS-LAPTOP-LAN-IP>
+powershell -ExecutionPolicy Bypass -File scripts\setup_windows.ps1
 ```
 
 `setup_windows.ps1` installs Git + Python + the Visual Studio C++ Build Tools, clones the
-repo if needed, builds llama.cpp, and probes the laptop (writes `node_<host>.json`). It's
-idempotent — safe to re-run. Add `-StartWorker` to also launch the worker, or
-`-Backend cuda`/`-Backend vulkan` once CPU works. Find the LAN IP with `ipconfig`.
+repo if needed, **auto-detects this laptop's LAN IP** (and prints it), builds llama.cpp, and
+probes the laptop (writes `node_<host>.json`). It's idempotent — safe to re-run. Add
+`-StartWorker` to also launch the worker, `-RpcHost <ip>` to override the detected IP, or
+`-Backend cuda`/`-Backend vulkan` once CPU works.
 
 > If a build error appears right after a *fresh* Build Tools install, reboot once and re-run.
 

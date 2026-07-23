@@ -4,11 +4,13 @@
 #
 # RUN IN AN ELEVATED (Administrator) PowerShell. Two ways:
 #
+# The LAN IP is auto-detected (and printed). Pass -RpcHost <ip> only to override it.
+#
 #   A) already cloned the repo:
-#        powershell -ExecutionPolicy Bypass -File scripts\setup_windows.ps1 -RpcHost <LAN-IP>
+#        powershell -ExecutionPolicy Bypass -File scripts\setup_windows.ps1
 #
 #   B) fresh laptop, one-liner (installs git, clones, sets up):
-#        & ([scriptblock]::Create((irm https://raw.githubusercontent.com/shahinmv/project-amalfi/main/scripts/setup_windows.ps1))) -RpcHost <LAN-IP>
+#        & ([scriptblock]::Create((irm https://raw.githubusercontent.com/shahinmv/project-amalfi/main/scripts/setup_windows.ps1)))
 #
 param(
   [string]$RpcHost = "",

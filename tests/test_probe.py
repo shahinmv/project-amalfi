@@ -19,6 +19,13 @@ def test_detect_backend_valid():
     assert probe.detect_backend() in {"cuda", "metal", "vulkan", "cpu"}
 
 
+def test_primary_ip_looks_like_an_ip():
+    ip = probe._primary_ip()
+    assert isinstance(ip, str)
+    parts = ip.split(".")
+    assert len(parts) == 4 and all(p.isdigit() for p in parts)
+
+
 def test_build_node_record_shape():
     gpu = {"type": "none", "name": "cpu", "vram_gb": 0.0}
     r = probe.build_node_record("192.168.1.5", 50052, gpu, 42.0)

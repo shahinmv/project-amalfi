@@ -81,9 +81,14 @@ def main() -> int:
     ap.add_argument("--out", default=None, help="write record to this file (default: stdout)")
     ap.add_argument("--print-backend", action="store_true",
                     help="print the llama.cpp build backend for this machine and exit")
+    ap.add_argument("--print-ip", action="store_true",
+                    help="print this machine's primary LAN IP and exit")
     args = ap.parse_args()
     if args.print_backend:
         print(detect_backend())
+        return 0
+    if args.print_ip:
+        print(_primary_ip())
         return 0
     host = args.rpc_host or _primary_ip()
     rec = build_node_record(host, args.rpc_port, detect_gpu(), measure_mem_bandwidth_gbps())

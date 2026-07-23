@@ -32,9 +32,12 @@ echo "== [2/4] building llama.cpp (backend: $BACKEND) =="
 PATH="$HERE/.venv/bin:$PATH" ./scripts/build_llamacpp.sh "$BACKEND"
 
 echo "== [3/4] probing this machine =="
-HOST_ARG=(); [ -n "$RPC_HOST" ] && HOST_ARG=(--rpc-host "$RPC_HOST")
+if [ -z "$RPC_HOST" ]; then
+  RPC_HOST="$(./.venv/bin/python scripts/probe.py --print-ip)"
+  echo ">> detected LAN IP: $RPC_HOST  (override with --rpc-host if this is wrong)"
+fi
 OUT="node_$(hostname -s).json"
-./.venv/bin/python scripts/probe.py "${HOST_ARG[@]}" --rpc-port "$RPC_PORT" --out "$OUT"
+./.venv/bin/python scripts/probe.py --rpc-host "$RPC_HOST" --rpc-port "$RPC_PORT" --out "$OUT"
 echo ">> wrote $OUT (copy this to the coordinator and merge all node_*.json into nodes.json)"
 
 echo "== [4/4] next steps =="

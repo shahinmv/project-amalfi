@@ -5,6 +5,12 @@ import numpy as np
 import psutil
 
 GPU_KEYS = ("type", "name", "vram_gb")
+BACKEND_FOR_GPU = {"cuda": "cuda", "metal": "metal", "vulkan": "vulkan", "none": "cpu"}
+
+
+def detect_backend() -> str:
+    """Map this machine's GPU type to the llama.cpp build backend."""
+    return BACKEND_FOR_GPU.get(detect_gpu()["type"], "cpu")
 
 
 def measure_mem_bandwidth_gbps(size_mb: int = 256, passes: int = 5) -> float:
@@ -73,7 +79,12 @@ def main() -> int:
     ap.add_argument("--rpc-host", default=None, help="LAN IP other nodes reach me on")
     ap.add_argument("--rpc-port", type=int, default=50052)
     ap.add_argument("--out", default=None, help="write record to this file (default: stdout)")
+    ap.add_argument("--print-backend", action="store_true",
+                    help="print the llama.cpp build backend for this machine and exit")
     args = ap.parse_args()
+    if args.print_backend:
+        print(detect_backend())
+        return 0
     host = args.rpc_host or _primary_ip()
     rec = build_node_record(host, args.rpc_port, detect_gpu(), measure_mem_bandwidth_gbps())
     text = json.dumps(rec, indent=2)

@@ -1,14 +1,23 @@
 {
-  "qwen2.5-32b-q4": {
-    "gguf": "qwen2.5-32b-instruct-q4_k_m.gguf",
-    "params_b": 32, "size_gb": 19.0, "kv_per_seq_gb": 0.5, "ctx_size": 4096
+  "qwen3-30b-a3b-q4": {
+    "gguf": "Qwen3-30B-A3B-Q4_K_M.gguf",
+    "hf_repo": "Qwen/Qwen3-30B-A3B-GGUF",
+    "hf_file": "Qwen3-30B-A3B-Q4_K_M.gguf",
+    "params_b": 30, "size_gb": 18.6, "kv_per_seq_gb": 0.4, "ctx_size": 4096,
+    "note": "MoE, ~3B active/token — recommended default: fast on CPU/iGPU fleets. Single 18.6GB file."
   },
   "gemma-3-27b-q4": {
-    "gguf": "gemma-3-27b-it-q4_k_m.gguf",
-    "params_b": 27, "size_gb": 16.5, "kv_per_seq_gb": 0.45, "ctx_size": 4096
+    "gguf": "gemma-3-27b-it-Q4_K_M.gguf",
+    "hf_repo": "ggml-org/gemma-3-27b-it-GGUF",
+    "hf_file": "gemma-3-27b-it-Q4_K_M.gguf",
+    "params_b": 27, "size_gb": 16.5, "kv_per_seq_gb": 0.45, "ctx_size": 4096,
+    "note": "Dense 27B — memory-bandwidth-bound; verify exact filename on the repo (may be split)."
   },
-  "qwen3-30b-a3b-q4": {
-    "gguf": "qwen3-30b-a3b-q4_k_m.gguf",
-    "params_b": 30, "size_gb": 18.0, "kv_per_seq_gb": 0.4, "ctx_size": 4096
+  "qwen2.5-32b-q4": {
+    "gguf": "qwen2.5-32b-instruct-q4_k_m.gguf",
+    "hf_repo": "Qwen/Qwen2.5-32B-Instruct-GGUF",
+    "hf_file": "qwen2.5-32b-instruct-q4_k_m-00001-of-00005.gguf",
+    "params_b": 32, "size_gb": 19.0, "kv_per_seq_gb": 0.5, "ctx_size": 4096,
+    "note": "Dense 32B — largest; the Q4_K_M is split into parts on HF (merge or point llama-server at part 1)."
   }
 }

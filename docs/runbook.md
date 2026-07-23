@@ -24,6 +24,23 @@ Install: `git`, `cmake`, a C/C++ build toolchain, and `python3` (3.9+).
 - **Linux:** `sudo apt install -y build-essential cmake git python3 python3-venv`
   (add the Vulkan SDK / `libvulkan-dev` for integrated-GPU acceleration, or CUDA for NVIDIA).
 
+## Fast path (recommended): one-command bootstrap
+
+On each laptop, after installing the prereqs above and cloning the repo, run:
+
+```bash
+./scripts/bootstrap.sh --backend auto --rpc-host <this-laptops-LAN-IP> --start-worker
+# Windows:  ./scripts/bootstrap.ps1 -Backend auto -RpcHost <IP> -StartWorker
+```
+
+This creates the venv, installs deps, auto-detects the backend, builds the pinned
+llama.cpp, probes the machine (writing `node_<host>.json`), and — with `--start-worker` —
+launches this node's rpc-server. Omit `--start-worker` to just set up + probe.
+
+Then on the **coordinator only**, merge every `node_*.json` into a single `nodes.json`
+array and continue from step 4. Steps 2–3 below are the manual equivalent of what
+bootstrap does.
+
 ## 2. Build llama.cpp (every laptop, same pinned tag)
 
 ```bash
@@ -54,19 +71,28 @@ named `nodes.json` (see `config/fleet.example.json` for the exact shape).
 ## 4. Plan the split (coordinator)
 
 ```bash
-./.venv/bin/python scripts/plan_split.py --nodes nodes.json --model <model-key> --out fleet.json
+./.venv/bin/python scripts/plan_split.py --nodes nodes.json --model qwen3-30b-a3b-q4 --out fleet.json
 ```
 
-- `<model-key>` is one of `config/models.json` (e.g. `qwen2.5-32b-q4`,
-  `gemma-3-27b-q4`, `qwen3-30b-a3b-q4`).
+- **Default model: `qwen3-30b-a3b-q4`** (Qwen3-30B-A3B, MoE — ~3B active/token, so it's
+  fast even on CPU/integrated-GPU laptops while still proving 30B-scale sharding). Other
+  keys in `config/models.json`: `gemma-3-27b-q4`, `qwen2.5-32b-q4`.
 - Review `fleet.json`: `selected_hosts`, `tensor_split`, and the printed commands.
 - If it reports insufficient capacity, add nodes or pick a smaller model.
 
 ## 5. Get the model (coordinator)
 
-Download the chosen GGUF into `models/` on the coordinator with the exact filename in
-`config/models.json` (e.g. from Hugging Face). The workers do **not** need the file —
-only the coordinator loads it and streams layers to the rpc-servers.
+Download the chosen GGUF into `models/` on the coordinator (workers do **not** need it —
+only the coordinator loads it and streams layers to the rpc-servers). For the default:
+
+```bash
+mkdir -p models
+curl -L -o models/Qwen3-30B-A3B-Q4_K_M.gguf \
+  https://huggingface.co/Qwen/Qwen3-30B-A3B-GGUF/resolve/main/Qwen3-30B-A3B-Q4_K_M.gguf
+```
+
+(~18.6 GB single file.) Each model's `hf_repo`/`hf_file` in `config/models.json` gives the
+download source; the local filename must match the entry's `gguf` field.
 
 ## 6. Launch the cell
 

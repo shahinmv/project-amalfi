@@ -15,6 +15,10 @@ def test_detect_gpu_shape():
     assert isinstance(g["vram_gb"], float)
 
 
+def test_detect_backend_valid():
+    assert probe.detect_backend() in {"cuda", "metal", "vulkan", "cpu"}
+
+
 def test_build_node_record_shape():
     gpu = {"type": "none", "name": "cpu", "vram_gb": 0.0}
     r = probe.build_node_record("192.168.1.5", 50052, gpu, 42.0)

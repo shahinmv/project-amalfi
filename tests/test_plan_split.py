@@ -36,6 +36,35 @@ def test_tensor_split_sums_to_one_and_is_proportional():
     assert split[0] > split[1]
 
 
+def test_capped_budget_limited_by_cap_and_free_ram():
+    # cap 4, overhead 1 -> budget min(4, capacity) - 1
+    assert ps.capped_budget_gb(node("a", 40, 16.0), 4.0, 1.0) == 3.0   # capped at 4
+    assert ps.capped_budget_gb(node("b", 40, 2.7), 4.0, 1.0) == 1.7    # limited by free RAM
+
+
+def test_capped_split_keeps_every_node_under_cap():
+    nodes = [node(f"n{i}", 40, 16.0) for i in range(7)]
+    model_size = 18.6
+    sel = ps.select_nodes_capped(nodes, model_size, cap_gb=4.0, overhead_gb=1.0)
+    split = ps.compute_tensor_split_capped(sel, 4.0, 1.0)
+    assert abs(sum(split) - 1.0) < 1e-6
+    for s in split:
+        assert s * model_size <= 3.0 + 1e-6   # weights per node never exceed the 3GB budget
+
+
+def test_capped_raises_when_too_few_nodes():
+    nodes = [node(f"n{i}", 40, 16.0) for i in range(4)]  # 4 * 3GB = 12 < 18.6
+    with pytest.raises(ValueError):
+        ps.select_nodes_capped(nodes, 18.6, cap_gb=4.0, overhead_gb=1.0)
+
+
+def test_plan_capped_reports_per_node_ram_under_cap():
+    nodes = [node(f"192.168.0.{i}", 40, 16.0) for i in range(7)]
+    catalog = {"m": {"gguf": "m.gguf", "size_gb": 18.6, "ctx_size": 4096}}
+    fleet = ps.plan(nodes, "m", catalog, max_ram_gb=4.0, ram_overhead_gb=1.0)
+    assert all(e["total_gb"] <= 4.0 + 1e-6 for e in fleet["est_ram_per_node"])
+
+
 def test_build_launch_commands_shape():
     sel = [node("192.168.1.10", 60, 12), node("192.168.1.11", 20, 12)]
     model = {"gguf": "m.gguf", "ctx_size": 4096}

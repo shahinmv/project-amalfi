@@ -94,8 +94,18 @@ It de-dups by `rpc_host:port` and prints a summary of the fleet it assembled.
 - **Default model: `qwen3-30b-a3b-q4`** (Qwen3-30B-A3B, MoE — ~3B active/token, so it's
   fast even on CPU/integrated-GPU laptops while still proving 30B-scale sharding). Other
   keys in `config/models.json`: `gemma-3-27b-q4`, `qwen2.5-32b-q4`.
-- Review `fleet.json`: `selected_hosts`, `tensor_split`, and the printed commands.
-- If it reports insufficient capacity, add nodes or pick a smaller model.
+- Review `fleet.json`: `selected_hosts`, `tensor_split`, `est_ram_per_node`, and the commands.
+- **Cap RAM per laptop** with `--max-ram-gb` (great for shared work laptops):
+
+  ```bash
+  ./.venv/bin/python scripts/plan_split.py --nodes nodes.json \
+    --model qwen3-30b-a3b-q4 --max-ram-gb 4 --out fleet.json
+  ```
+
+  This spreads the model across enough laptops so none exceeds the cap (weights + ~1 GB
+  overhead), and prints the estimated RAM per laptop. A 4 GB cap on the 30B needs ~6–7
+  laptops (~3 GB of weights each). Tune the reserve with `--ram-overhead-gb`.
+- If it reports insufficient capacity, add laptops, raise `--max-ram-gb`, or pick a smaller model.
 
 ## 5. Get the model (coordinator)
 

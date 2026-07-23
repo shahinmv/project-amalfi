@@ -115,9 +115,10 @@ Invoke-Git pull --ff-only
 Write-Host ">> repo: $Repo"
 
 Write-Host "== [5/6] build + probe (backend: $Backend) ==" -ForegroundColor Cyan
-$btArgs = @("-Backend", $Backend, "-RpcPort", $RpcPort)
-if ($RpcHost -ne "") { $btArgs += @("-RpcHost", $RpcHost) }
-if ($StartWorker)    { $btArgs += "-StartWorker" }
+# Hashtable splat so params bind BY NAME (array splat binds positionally and mis-assigns).
+$btArgs = @{ Backend = $Backend; RpcPort = $RpcPort }
+if ($RpcHost -ne "") { $btArgs["RpcHost"] = $RpcHost }
+if ($StartWorker)    { $btArgs["StartWorker"] = $true }
 & "$Repo\scripts\bootstrap.ps1" @btArgs
 
 Write-Host "== [6/6] done ==" -ForegroundColor Green

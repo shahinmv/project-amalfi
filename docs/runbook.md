@@ -67,8 +67,15 @@ On each laptop, find its LAN IP (e.g. `ipconfig` / `ifconfig` / `ip addr`), then
 ./.venv/bin/python scripts/probe.py --rpc-host <this-laptops-LAN-IP> --out node.json
 ```
 
-Copy every `node.json` to the coordinator and combine them into a single JSON **array**
-named `nodes.json` (see `config/fleet.example.json` for the exact shape).
+Copy every laptop's `node_*.json` to the coordinator (into the repo dir), then merge them
+into a single `nodes.json` with the helper:
+
+```bash
+./.venv/bin/python scripts/merge_nodes.py            # globs node_*.json in the current dir
+# or list them explicitly:  scripts/merge_nodes.py node_a.json node_b.json --out nodes.json
+```
+
+It de-dups by `rpc_host:port` and prints a summary of the fleet it assembled.
 
 ## 4. Plan the split (coordinator)
 

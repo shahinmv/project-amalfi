@@ -1,0 +1,8 @@
+Explain how a bicycle stays upright while moving.
+Summarize the causes of the fall of the Western Roman Empire.
+Write a Python function that returns the nth Fibonacci number.
+Describe the water cycle in three sentences.
+What are the tradeoffs between TCP and UDP?
+Give three tips for reducing memory usage in a large program.
+Explain gradient descent to a high-school student.
+What is the difference between latency and throughput?

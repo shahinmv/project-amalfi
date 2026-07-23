@@ -76,6 +76,16 @@ Real cell across separate machines on the office LAN, model `qwen2.5-7b-q4` (~4.
 1. **Fewer, faster (GPU/Metal) nodes beat more CPU nodes for a single model:** 8.46 vs 3.04
    tok/s (~2.8×) with one *fewer* machine and a shorter pipeline. Node quality + pipeline
    length dominate node count. Confirms the "prefer fewest/fastest nodes" design principle.
+
+   **Relay demonstration (7B single-stream), machines-in-relay vs speed:**
+   | Mac alone (1) | Mac+Mini (2) | Mac+2 laptops (3) |
+   |---|---|---|
+   | 25.4 tok/s | 8.5 tok/s | 3.0 tok/s |
+
+   Each added relay stop makes a single response *slower* — pipeline parallelism is a
+   sequential handoff, not simultaneous work. A live traffic capture confirmed the Mac emits
+   a continuous outbound stream (activations → Mini) only while generating. The relay's sole
+   benefit is running a model too big for one machine (capacity bought with latency).
 2. **Batch concurrency did NOT raise throughput across networked nodes** (0.74×, 0.57×) —
    unlike the single-machine loopback (1.59× in §A). The throughput-over-latency win needs
    the pipeline bubbles to overlap, which requires a fast interconnect + spare KV memory per

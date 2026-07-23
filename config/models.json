@@ -1,4 +1,18 @@
 {
+  "qwen2.5-3b-q4": {
+    "gguf": "Qwen2.5-3B-Instruct-Q4_K_M.gguf",
+    "hf_repo": "bartowski/Qwen2.5-3B-Instruct-GGUF",
+    "hf_file": "Qwen2.5-3B-Instruct-Q4_K_M.gguf",
+    "params_b": 3, "size_gb": 1.93, "kv_per_seq_gb": 0.2, "ctx_size": 4096,
+    "note": "Tiny — safest first cross-machine test. Single 1.93GB file."
+  },
+  "qwen2.5-7b-q4": {
+    "gguf": "Qwen2.5-7B-Instruct-Q4_K_M.gguf",
+    "hf_repo": "bartowski/Qwen2.5-7B-Instruct-GGUF",
+    "hf_file": "Qwen2.5-7B-Instruct-Q4_K_M.gguf",
+    "params_b": 7, "size_gb": 4.68, "kv_per_seq_gb": 0.3, "ctx_size": 4096,
+    "note": "Small real model (~4.68GB). Won't fit one low-free-RAM node -> genuine sharding."
+  },
   "qwen3-30b-a3b-q4": {
     "gguf": "Qwen3-30B-A3B-Q4_K_M.gguf",
     "hf_repo": "Qwen/Qwen3-30B-A3B-GGUF",

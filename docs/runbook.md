@@ -94,18 +94,18 @@ It de-dups by `rpc_host:port` and prints a summary of the fleet it assembled.
 - **Default model: `qwen3-30b-a3b-q4`** (Qwen3-30B-A3B, MoE — ~3B active/token, so it's
   fast even on CPU/integrated-GPU laptops while still proving 30B-scale sharding). Other
   keys in `config/models.json`: `gemma-3-27b-q4`, `qwen2.5-32b-q4`.
-- Review `fleet.json`: `selected_hosts`, `tensor_split`, `est_ram_per_node`, and the commands.
-- **Cap RAM per laptop** with `--max-ram-gb` (great for shared work laptops):
-
-  ```bash
-  ./.venv/bin/python scripts/plan_split.py --nodes nodes.json \
-    --model qwen3-30b-a3b-q4 --max-ram-gb 4 --out fleet.json
-  ```
-
-  This spreads the model across enough laptops so none exceeds the cap (weights + ~1 GB
-  overhead), and prints the estimated RAM per laptop. A 4 GB cap on the 30B needs ~6–7
-  laptops (~3 GB of weights each). Tune the reserve with `--ram-overhead-gb`.
-- If it reports insufficient capacity, add laptops, raise `--max-ram-gb`, or pick a smaller model.
+- Review `fleet.json`: `cap_policy`, `selected_hosts`, `tensor_split`, `est_ram_per_node`.
+- **RAM per laptop is capped automatically.** By default the planner uses at most **half of
+  each laptop's RAM/VRAM** (`--ram-fraction 0.5`), bounded by whatever is actually free — so
+  it adapts per machine and never hogs a work laptop. It prints the estimated RAM per laptop.
+- **Tune the policy:**
+  - `--ram-fraction 0.6` — use up to 60% per laptop (fits the model on fewer machines).
+  - `--max-ram-gb 4` — hard absolute cap instead of a fraction (overrides `--ram-fraction`).
+    A 4 GB cap on the 30B needs ~6–7 laptops (~3 GB weights each).
+  - `--ram-fraction 0` — disable capping; split purely by compute speed (uses the fewest
+    laptops that physically fit).
+  - `--ram-overhead-gb` — tune the reserved non-weight RAM (default 1 GB).
+- If it reports insufficient capacity, add laptops, raise the fraction/cap, or pick a smaller model.
 
 ## 5. Get the model (coordinator)
 

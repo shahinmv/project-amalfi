@@ -4,8 +4,9 @@ spec = importlib.util.spec_from_file_location(
 ps = importlib.util.module_from_spec(spec); spec.loader.exec_module(ps)
 
 
-def node(host, bw, free, gpu="none", vram=0.0):
+def node(host, bw, free, gpu="none", vram=0.0, total=None):
     return {"rpc_host": host, "mem_bandwidth_gbps": bw, "free_ram_gb": free,
+            "total_ram_gb": total if total is not None else free,
             "gpu": {"type": gpu, "name": gpu, "vram_gb": vram}, "cpu_cores": 8}
 
 
@@ -56,6 +57,22 @@ def test_capped_raises_when_too_few_nodes():
     nodes = [node(f"n{i}", 40, 16.0) for i in range(4)]  # 4 * 3GB = 12 < 18.6
     with pytest.raises(ValueError):
         ps.select_nodes_capped(nodes, 18.6, cap_gb=4.0, overhead_gb=1.0)
+
+
+def test_dynamic_budget_half_of_total_bounded_by_free():
+    # total 16, free 12, fraction .5 -> min(8, 12) - 1 overhead = 7
+    assert ps.dynamic_budget_gb(node("a", 40, 12.0, total=16.0), 0.5, 1.0) == 7.0
+    # busy node: total 16, free 3 -> min(8, 3) - 1 = 2  (bounded by free RAM, not the half)
+    assert ps.dynamic_budget_gb(node("b", 40, 3.0, total=16.0), 0.5, 1.0) == 2.0
+
+
+def test_plan_default_uses_half_of_ram():
+    nodes = [node(f"192.168.0.{i}", 40, 12.0, total=16.0) for i in range(4)]
+    catalog = {"m": {"gguf": "m.gguf", "size_gb": 18.6, "ctx_size": 4096}}
+    fleet = ps.plan(nodes, "m", catalog)  # default ram_fraction=0.5
+    assert fleet["cap_policy"] == "ram_fraction=0.5"
+    for e in fleet["est_ram_per_node"]:
+        assert e["total_gb"] <= 0.5 * 16.0 + 1e-6   # never more than half of a 16GB laptop
 
 
 def test_plan_capped_reports_per_node_ram_under_cap():

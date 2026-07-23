@@ -41,22 +41,31 @@ def compute_tensor_split(selected: list) -> list:
 
 
 def capped_budget_gb(node: dict, cap_gb: float, overhead_gb: float) -> float:
-    """GB of model weights a node may hold under a per-node RAM cap.
+    """GB of model weights a node may hold under an ABSOLUTE per-node RAM cap.
 
     Limited by both the cap and the node's actual free memory, minus overhead
     (KV cache + compute buffers + the rpc-server process)."""
     return round(max(0.0, min(cap_gb, node_capacity_gb(node)) - overhead_gb), 3)
 
 
-def select_nodes_capped(nodes: list, model_size_gb: float,
-                        cap_gb: float, overhead_gb: float = 1.0) -> list:
-    """Pick the fewest strong nodes whose capped weight budgets sum to the model."""
-    ranked = sorted(nodes,
-                    key=lambda n: (capped_budget_gb(n, cap_gb, overhead_gb), score_node(n)),
-                    reverse=True)
+def dynamic_budget_gb(node: dict, fraction: float, overhead_gb: float) -> float:
+    """GB of weights a node may hold under a DYNAMIC per-node cap.
+
+    Footprint (weights + overhead) is capped at `fraction` of the node's total
+    RAM+VRAM (be a good citizen — leave the rest for the user), and additionally
+    never exceeds what is currently free (avoid OOM)."""
+    total = node.get("total_ram_gb", node.get("free_ram_gb", 0.0)) + node.get("gpu", {}).get("vram_gb", 0.0)
+    free = node_capacity_gb(node)  # free_ram + vram
+    footprint_ceiling = min(fraction * total, free)
+    return round(max(0.0, footprint_ceiling - overhead_gb), 3)
+
+
+def _select_by_budget(nodes: list, model_size_gb: float, budget_fn, why: str) -> list:
+    """Pick the fewest strongest nodes whose per-node weight budgets sum to the model."""
+    ranked = sorted(nodes, key=lambda n: (budget_fn(n), score_node(n)), reverse=True)
     chosen, total = [], 0.0
     for n in ranked:
-        b = capped_budget_gb(n, cap_gb, overhead_gb)
+        b = budget_fn(n)
         if b <= 0:
             continue
         chosen.append(n)
@@ -64,19 +73,29 @@ def select_nodes_capped(nodes: list, model_size_gb: float,
         if total >= model_size_gb:
             return chosen
     raise ValueError(
-        f"With a {cap_gb} GB/node cap (~{cap_gb - overhead_gb:.1f} GB weights each), the "
-        f"fleet holds only {total:.1f} GB < {model_size_gb} GB needed. Add laptops, raise "
-        f"--max-ram-gb, or choose a smaller model.")
+        f"{why}: fleet holds only {total:.1f} GB of weights < {model_size_gb} GB needed. "
+        f"Add laptops, loosen the cap, or choose a smaller model.")
 
 
-def compute_tensor_split_capped(selected: list, cap_gb: float,
-                                overhead_gb: float = 1.0) -> list:
-    """Split proportional to each node's capped budget (guarantees no node exceeds the cap)."""
-    budgets = [capped_budget_gb(n, cap_gb, overhead_gb) for n in selected]
+def _split_by_budget(selected: list, budget_fn) -> list:
+    """Split proportional to each node's budget (guarantees no node exceeds it)."""
+    budgets = [budget_fn(n) for n in selected]
     total = sum(budgets) or 1.0
     split = [round(b / total, 3) for b in budgets]
     split[-1] = round(split[-1] + (1.0 - sum(split)), 3)
     return split
+
+
+def select_nodes_capped(nodes: list, model_size_gb: float,
+                        cap_gb: float, overhead_gb: float = 1.0) -> list:
+    return _select_by_budget(nodes, model_size_gb,
+                             lambda n: capped_budget_gb(n, cap_gb, overhead_gb),
+                             f"With a {cap_gb} GB/node cap")
+
+
+def compute_tensor_split_capped(selected: list, cap_gb: float,
+                                overhead_gb: float = 1.0) -> list:
+    return _split_by_budget(selected, lambda n: capped_budget_gb(n, cap_gb, overhead_gb))
 
 
 def build_launch_commands(selected: list, model: dict, rpc_port: int = 50052,
@@ -99,21 +118,34 @@ def build_launch_commands(selected: list, model: dict, rpc_port: int = 50052,
 
 
 def plan(nodes: list, model_key: str, catalog: dict, rpc_port: int = 50052,
-         max_ram_gb: float = None, ram_overhead_gb: float = 1.0) -> dict:
+         max_ram_gb: float = None, ram_fraction: float = 0.5,
+         ram_overhead_gb: float = 1.0) -> dict:
+    """Plan the cell. Cap policy (precedence): an absolute --max-ram-gb wins; else a
+    dynamic per-node cap at `ram_fraction` of each laptop's RAM/VRAM (default 0.5);
+    pass ram_fraction=None to disable capping and split purely by compute score."""
     if model_key not in catalog:
         raise ValueError(f"Unknown model '{model_key}'. Known: {list(catalog)}")
     model = catalog[model_key]
     size = model["size_gb"]
     if max_ram_gb:
-        selected = select_nodes_capped(nodes, size, max_ram_gb, ram_overhead_gb)
-        split = compute_tensor_split_capped(selected, max_ram_gb, ram_overhead_gb)
+        policy = f"max_ram_gb={max_ram_gb}"
+        budget_fn = lambda n: capped_budget_gb(n, max_ram_gb, ram_overhead_gb)
+        selected = _select_by_budget(nodes, size, budget_fn, f"With a {max_ram_gb} GB/node cap")
+        split = _split_by_budget(selected, budget_fn)
         required = size
-        cmds = build_launch_commands(selected, model, rpc_port=rpc_port, split=split)
+    elif ram_fraction:
+        policy = f"ram_fraction={ram_fraction}"
+        budget_fn = lambda n: dynamic_budget_gb(n, ram_fraction, ram_overhead_gb)
+        selected = _select_by_budget(nodes, size, budget_fn,
+                                     f"Using {int(ram_fraction*100)}% of each laptop's RAM")
+        split = _split_by_budget(selected, budget_fn)
+        required = size
     else:
+        policy = "uncapped (compute-score split)"
         required = estimate_required_gb(model)
         selected = select_nodes(nodes, required)
-        cmds = build_launch_commands(selected, model, rpc_port=rpc_port)
-        split = cmds["tensor_split"]
+        split = compute_tensor_split(selected)
+    cmds = build_launch_commands(selected, model, rpc_port=rpc_port, split=split)
     # per-node RAM estimate the user can eyeball
     est = [{"host": n["rpc_host"],
             "weights_gb": round(split[i] * size, 2),
@@ -122,7 +154,7 @@ def plan(nodes: list, model_key: str, catalog: dict, rpc_port: int = 50052,
     return {
         "model": model_key, "model_size_gb": size,
         "required_gb": required, "rpc_port": rpc_port,
-        "max_ram_gb": max_ram_gb, "ram_overhead_gb": ram_overhead_gb,
+        "cap_policy": policy, "ram_overhead_gb": ram_overhead_gb,
         "selected_hosts": [n["rpc_host"] for n in selected],
         "est_ram_per_node": est,
         **cmds,
@@ -136,8 +168,11 @@ def main() -> int:
     ap.add_argument("--catalog", default="config/models.json")
     ap.add_argument("--rpc-port", type=int, default=50052)
     ap.add_argument("--max-ram-gb", type=float, default=None,
-                    help="hard cap on RAM used per laptop (weights+overhead); "
-                         "spreads the model across enough nodes to stay under it")
+                    help="ABSOLUTE cap on RAM per laptop (weights+overhead). Overrides "
+                         "--ram-fraction. Spreads the model across enough nodes to stay under it.")
+    ap.add_argument("--ram-fraction", type=float, default=0.5,
+                    help="DYNAMIC cap: use at most this fraction of each laptop's RAM/VRAM "
+                         "(default 0.5 = half), bounded by free memory. Set 0 to disable capping.")
     ap.add_argument("--ram-overhead-gb", type=float, default=1.0,
                     help="reserved per-node non-weight RAM (KV cache + buffers + process)")
     ap.add_argument("--out", default="fleet.json")
@@ -147,11 +182,14 @@ def main() -> int:
     with open(args.catalog) as f:
         catalog = json.load(f)
     fleet = plan(nodes, args.model, catalog, rpc_port=args.rpc_port,
-                 max_ram_gb=args.max_ram_gb, ram_overhead_gb=args.ram_overhead_gb)
+                 max_ram_gb=args.max_ram_gb,
+                 ram_fraction=(args.ram_fraction or None),
+                 ram_overhead_gb=args.ram_overhead_gb)
     with open(args.out, "w") as f:
         json.dump(fleet, f, indent=2)
     print(json.dumps(fleet, indent=2))
-    print("\n# Estimated RAM per laptop:")
+    print(f"\n# Cap policy: {fleet['cap_policy']}")
+    print("# Estimated RAM per laptop:")
     for e in fleet["est_ram_per_node"]:
         print(f"#   {e['host']}: ~{e['total_gb']} GB  ({e['weights_gb']} GB weights + "
               f"{fleet['ram_overhead_gb']} GB overhead)")

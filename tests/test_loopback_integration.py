@@ -14,7 +14,7 @@ def _load(name, rel):
 hc = _load("healthcheck", "scripts/healthcheck.py")
 
 requires_llama = pytest.mark.skipif(
-    not (BIN / "rpc-server").exists() or not MODEL_ENV or not pathlib.Path(MODEL_ENV).exists(),
+    not (BIN / "ggml-rpc-server").exists() or not MODEL_ENV or not pathlib.Path(MODEL_ENV).exists(),
     reason="needs built llama.cpp and AMALFI_TEST_MODEL pointing at a small GGUF")
 
 
@@ -24,7 +24,7 @@ def test_loopback_two_workers_serve_and_healthcheck():
     try:
         for port in (50060, 50061):
             procs.append(subprocess.Popen(
-                [str(BIN / "rpc-server"), "--host", "127.0.0.1", "--port", str(port)]))
+                [str(BIN / "ggml-rpc-server"), "--host", "127.0.0.1", "--port", str(port)]))
         time.sleep(3)
         fleet = {"rpc": "127.0.0.1:50060,127.0.0.1:50061"}
         res = hc.run_healthcheck(fleet, timeout=3.0)

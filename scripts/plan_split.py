@@ -52,7 +52,7 @@ def build_launch_commands(selected: list, model: dict,
     return {
         "rpc": rpc,
         "tensor_split": split,
-        "worker_cmd": f"rpc-server --host 0.0.0.0 --port {rpc_port}",
+        "worker_cmd": f"ggml-rpc-server --host 0.0.0.0 --port {rpc_port}",
         "coordinator_cmd": coordinator,
         "coordinator_host": selected[0]["rpc_host"],
     }

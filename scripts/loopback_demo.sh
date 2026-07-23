@@ -1,13 +1,13 @@
 #!/usr/bin/env bash
 # Manual localhost proof: 2 rpc-servers + coordinator on this machine with a small model.
-# Requires: scripts/build_llamacpp.sh cpu   AND   a small GGUF at models/$MODEL.
+# Requires: scripts/build_llamacpp.sh <backend>   AND   a small GGUF at models/$MODEL.
 set -euo pipefail
 HERE="$(cd "$(dirname "$0")/.." && pwd)"
 BIN="$HERE/vendor/llama.cpp/build/bin"
 MODEL="${1:?usage: loopback_demo.sh <gguf-filename-in-models/>}"
 
-"$BIN/rpc-server" --host 127.0.0.1 --port 50060 & W1=$!
-"$BIN/rpc-server" --host 127.0.0.1 --port 50061 & W2=$!
+"$BIN/ggml-rpc-server" --host 127.0.0.1 --port 50060 & W1=$!
+"$BIN/ggml-rpc-server" --host 127.0.0.1 --port 50061 & W2=$!
 sleep 3
 trap 'kill $W1 $W2 $CO 2>/dev/null || true' EXIT
 

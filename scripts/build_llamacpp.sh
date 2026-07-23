@@ -18,5 +18,5 @@ fi
 FLAGS="$(python3 "$HERE/scripts/build_flags.py" "$BACKEND")"
 echo ">> cmake flags: $FLAGS"
 cmake -S "$SRC" -B "$SRC/build" $FLAGS
-cmake --build "$SRC/build" --config Release -j --target rpc-server llama-server
-echo ">> built: $SRC/build/bin/{rpc-server,llama-server}"
+cmake --build "$SRC/build" --config Release -j --target ggml-rpc-server llama-server
+echo ">> built: $SRC/build/bin/{ggml-rpc-server,llama-server}"

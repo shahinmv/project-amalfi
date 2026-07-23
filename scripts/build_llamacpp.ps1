@@ -13,5 +13,5 @@ if (-not (Test-Path $Src)) {
 }
 $Flags = (python "$Here/scripts/build_flags.py" $Backend) -split " "
 cmake -S $Src -B "$Src/build" @Flags
-cmake --build "$Src/build" --config Release --target rpc-server llama-server
-Write-Host ">> built rpc-server + llama-server in $Src/build/bin"
+cmake --build "$Src/build" --config Release --target ggml-rpc-server llama-server
+Write-Host ">> built ggml-rpc-server + llama-server in $Src/build/bin"

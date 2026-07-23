@@ -38,6 +38,11 @@ if (-not (Test-Admin)) {
 if (-not (Get-Command winget -ErrorAction SilentlyContinue)) {
   throw "winget not found. Install 'App Installer' from the Microsoft Store, then re-run."
 }
+# Allow the child .ps1 files (bootstrap/build/worker) to run in THIS process even if the
+# machine's default execution policy is Restricted. Process scope only — nothing persists.
+Set-ExecutionPolicy -ExecutionPolicy Bypass -Scope Process -Force
+# GitHub needs TLS 1.2 on older PowerShell 5.1 setups.
+try { [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12 } catch {}
 
 $wg = @("--accept-source-agreements","--accept-package-agreements","--silent")
 Write-Host "== [1/6] Git ==" -ForegroundColor Cyan

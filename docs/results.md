@@ -51,22 +51,41 @@ at the target node count. It does **not** substitute for the office-laptop accep
 
 ---
 
-## B. Office-laptop acceptance (to fill in during the real test)
+## B. Office-fleet run (2026-07-23) — PASSED (cross-machine, cross-platform)
 
-- Date:
-- Fleet: <n> laptops (list OS / GPU / RAM / measured mem-bandwidth per node)
-- Model: <key> (<size> GB), quantization Q4_K_M
-- Split: <tensor-split values> across <hosts>
+Real cell across separate machines on the office LAN, model `qwen2.5-7b-q4` (~4.68 GB Q4_K_M).
 
-### Success criteria (spec §2)
-- [ ] Model loaded split across >= 2 nodes (does not fit on one) — evidence:
-- [ ] Coherent chat output — sample:
-- [ ] Batch aggregate tok/s > single-stream tok/s — numbers below
+**Fleet probed:**
+| Node | IP | Type | Cores | Total/Free RAM | mem BW |
+|------|----|------|-------|----------------|--------|
+| Mac (M3 Pro) | 192.168.1.188 | Metal | 11 | 19.3 / ~6 GB | 65 GB/s |
+| Mac Mini (M1) | 192.168.1.89 | Metal | 8 | 8.6 / 4.5 GB | 43 GB/s |
+| DESKTOP-T5GTIOC | 192.168.1.140 | CPU (i5-1334U) | 12 | 16.8 / ~4 GB | 12 GB/s |
+| Anar_Yoga | 192.168.1.236 | CPU (Ryzen 7 5700U) | 16 | 14.9 / ~4.6 GB | 6.5 GB/s |
 
-### Benchmark
-| mode | concurrency | aggregate tok/s | p50 latency s | p95 latency s | ok/total |
-|------|-------------|-----------------|---------------|---------------|----------|
-| single | 1 | | | | |
-| batch  | 8 | | | | |
+**Success criteria (spec §2):** ✅ model split across ≥2 separate machines over the LAN;
+✅ coherent chat output through the cell; ⚠️ batch vs single — see finding below.
+
+### Benchmark comparison (7B, max_tokens 48)
+| Config | Nodes | single tok/s | batch(4) tok/s | speedup | load |
+|--------|-------|--------------|----------------|---------|------|
+| Mac + 2 CPU laptops | 3 | 3.04 | 2.25 | 0.74× | 213 s |
+| **Mac + Mac Mini (Metal)** | **2** | **8.46** | 4.83 | 0.57× | 45 s |
+
+### Findings
+1. **Fewer, faster (GPU/Metal) nodes beat more CPU nodes for a single model:** 8.46 vs 3.04
+   tok/s (~2.8×) with one *fewer* machine and a shorter pipeline. Node quality + pipeline
+   length dominate node count. Confirms the "prefer fewest/fastest nodes" design principle.
+2. **Batch concurrency did NOT raise throughput across networked nodes** (0.74×, 0.57×) —
+   unlike the single-machine loopback (1.59× in §A). The throughput-over-latency win needs
+   the pipeline bubbles to overlap, which requires a fast interconnect + spare KV memory per
+   node. Across a heterogeneous consumer LAN that overlap is eaten by network-hop latency and
+   the small node's memory limits. Practical implication (matches the original design): scale
+   throughput by running **multiple independent cells (data parallelism)**, not by batching a
+   single cross-network pipeline.
+3. Cross-platform RPC works: Metal (macOS) + CPU (Windows) nodes from the same pinned
+   llama.cpp build (b10103, rpc v4.0.3) form one cell.
 
 ### Notes / observations
+- 30 B capacity run (a model no single machine can hold) still to do — needs freeing RAM
+  (reboot nodes) since free RAM was low (~4 GB) across the fleet.

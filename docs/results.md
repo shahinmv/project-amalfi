@@ -29,7 +29,25 @@ compute kernels compiling and running (q4_K/q6_K matmuls) — both nodes activel
 while aggregate tok/s climbed — the throughput-over-latency insight, confirmed. On the real
 fleet with a 25–30B model and more slots, the effect is larger.
 
-- Unit suite: 19 passed. Loopback integration test: passed (with `AMALFI_TEST_MODEL` set).
+- Unit suite: 20 passed. Loopback integration test: passed (with `AMALFI_TEST_MODEL` set).
+
+### 4-node cell (same machine, matches office laptop count)
+
+Ran **4 × `ggml-rpc-server`** (ports 50060–63) with the coordinator pinned to
+`--device RPC0,RPC2,RPC4,RPC6 --tensor-split 0.25,0.25,0.25,0.25`.
+
+- **All four workers computed** (each compiled ~21 Metal kernels — the model was genuinely
+  split across all 4 nodes), healthcheck: 4/4 UP, coherent output.
+- Benchmark: single-stream **127 tok/s** → batch (concurrency 4) **205 tok/s** =
+  **1.62× speedup**, 32/32 ok. The throughput-over-latency effect holds at 4 nodes.
+- Planner validated for the real scenario: `plan_split.py --model qwen3-30b-a3b-q4` against a
+  simulated 4-node 16 GB fleet produces a correct capacity-aware split (required 21 GB).
+
+**Note on scope of this validation:** all processes shared one machine's RAM/GPU, so this
+proves the *orchestration, multi-node pipeline, split planning, and benchmark* are correct
+at the target node count. It does **not** substitute for the office-laptop acceptance
+(Section B), which is the only test that exercises a true 25–30 B model held across separate
+16 GB machines over a real LAN — that requires the physical laptops.
 
 ---
 

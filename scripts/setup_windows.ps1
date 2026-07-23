@@ -42,6 +42,12 @@ function Test-HasVCTools {
         -property installationPath 2>$null
   return [bool]$p
 }
+function Invoke-Git {
+  # Run git without letting its (normal) stderr chatter trip $ErrorActionPreference=Stop.
+  $old = $ErrorActionPreference; $ErrorActionPreference = "Continue"
+  & git @args 2>&1 | Out-Null
+  $ErrorActionPreference = $old
+}
 
 if (-not (Test-Admin)) {
   Write-Host "Must run as Administrator (to install the C++ Build Tools)." -ForegroundColor Red
@@ -70,9 +76,17 @@ else { winget install --id Python.Python.3.12 -e @wg 2>$null | Out-Null; Refresh
 Write-Host "== [3/6] Visual Studio C++ Build Tools ==" -ForegroundColor Cyan
 if (Test-HasVCTools) { Write-Host ">> already installed, skipping" }
 else {
-  Write-Host ">> installing (large download, several minutes, please wait)..."
+  Write-Host ">> installing (large download, several minutes — a 'Visual Studio Installer' window may appear)..."
   winget install --id Microsoft.VisualStudio.2022.BuildTools -e --accept-source-agreements --accept-package-agreements `
-    --override "--quiet --wait --add Microsoft.VisualStudio.Workload.VCTools --includeRecommended" 2>$null | Out-Null
+    --override "--quiet --wait --norestart --add Microsoft.VisualStudio.Workload.VCTools --includeRecommended"
+  Refresh-Path
+  if (-not (Test-HasVCTools)) {
+    Write-Host ""
+    Write-Host "!! C++ Build Tools not detected yet." -ForegroundColor Yellow
+    Write-Host "   It may still be installing (watch the 'Visual Studio Installer' window) or need a reboot."
+    Write-Host "   When it's done, re-run this same command — it skips finished steps and continues." -ForegroundColor Yellow
+    exit 1
+  }
 }
 
 Refresh-Path
@@ -93,11 +107,11 @@ if ($PSScriptRoot -and (Test-Path (Join-Path (Split-Path $PSScriptRoot -Parent) 
   $Repo = Join-Path $HOME "Desktop\project-amalfi"
   if (-not (Test-Path (Join-Path $Repo "requirements.txt"))) {
     Write-Host ">> cloning $RepoUrl -> $Repo"
-    git clone $RepoUrl $Repo
+    Invoke-Git clone $RepoUrl $Repo
   }
 }
 Set-Location $Repo
-git pull --ff-only 2>$null | Out-Null
+Invoke-Git pull --ff-only
 Write-Host ">> repo: $Repo"
 
 Write-Host "== [5/6] build + probe (backend: $Backend) ==" -ForegroundColor Cyan

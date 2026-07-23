@@ -14,6 +14,18 @@ if (-not (Test-Path $Src)) {
 }
 $Flags = (python "$Here/scripts/build_flags.py" $Backend) -split " "
 
+# Drop a stale build dir if it was configured with a different generator
+# (e.g. a prior failed NMake attempt) — CMake refuses to switch generators in place.
+$cache = "$Src/build/CMakeCache.txt"
+if (Test-Path $cache) {
+  $genLine = Select-String -Path $cache -Pattern "^CMAKE_GENERATOR:INTERNAL=(.*)$"
+  $gen = if ($genLine) { $genLine.Matches[0].Groups[1].Value } else { "" }
+  if ($gen -ne "Visual Studio 17 2022") {
+    Write-Host ">> removing stale build dir (previous generator: '$gen')"
+    Remove-Item -Recurse -Force "$Src/build"
+  }
+}
+
 # Force the Visual Studio generator so CMake finds MSVC automatically (no Developer
 # prompt needed) — avoids the "NMake Makefiles / CMAKE_C_COMPILER not set" fallback.
 cmake -S $Src -B "$Src/build" -G "Visual Studio 17 2022" -A x64 @Flags

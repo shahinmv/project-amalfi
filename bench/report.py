@@ -28,6 +28,18 @@ def summarize(results: list, wall_time_s: float) -> dict:
 def format_report(single: dict, batch: dict) -> str:
     speedup = (round(batch["aggregate_tok_s"] / single["aggregate_tok_s"], 2)
                if single["aggregate_tok_s"] > 0 else 0.0)
+    if speedup >= 1.05:
+        verdict = (f"Batch throughput is {speedup}x single-stream: concurrency raises aggregate "
+                   f"tokens/sec (the throughput-over-latency win) — the nodes had spare parallel "
+                   f"capacity to fill.")
+    elif speedup <= 0.95:
+        verdict = (f"Batch throughput is {speedup}x single-stream: concurrency did NOT help here — "
+                   f"aggregate tokens/sec fell. This is expected when nodes are already saturated by "
+                   f"a single stream (CPU-only / low memory bandwidth): extra concurrent requests add "
+                   f"contention and KV-cache pressure instead of filling idle compute. The batch win "
+                   f"shows up on nodes with parallel headroom (GPUs / higher bandwidth).")
+    else:
+        verdict = f"Batch and single-stream throughput are within noise ({speedup}x)."
     return (
         "# Amalfi benchmark\n\n"
         "## Single-stream (concurrency=1)\n"
@@ -39,6 +51,5 @@ def format_report(single: dict, batch: dict) -> str:
         f"- p50_latency_s: {batch['p50_latency_s']}, p95_latency_s: {batch['p95_latency_s']}\n"
         f"- requests ok: {batch['ok']}/{batch['n']}\n\n"
         f"## Throughput speedup (batch vs single): {speedup}x\n"
-        "This demonstrates the throughput-over-latency insight: per-request latency "
-        "stays high, but aggregate tokens/sec rises sharply under concurrency.\n"
+        f"{verdict}\n"
     )

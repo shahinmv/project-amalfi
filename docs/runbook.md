@@ -18,10 +18,18 @@ and benchmark single-stream vs batch throughput.
 
 Install: `git`, `cmake`, a C/C++ build toolchain, and `python3` (3.9+).
 
-- **Windows:** Visual Studio Build Tools (C++ workload), Git, Python. Use PowerShell.
-  (CMake is installed automatically by `bootstrap.ps1` via pip — no separate install.)
-  For NVIDIA laptops also install the CUDA Toolkit; for integrated-GPU accel install the
-  Vulkan SDK (otherwise the `cpu` backend is used).
+- **Windows:** Git, Python 3 (tick "Add to PATH"), and **Visual Studio Build Tools 2022
+  with the "Desktop development with C++" workload** (provides the MSVC compiler — required).
+  Install the C++ tools in one command (admin PowerShell):
+
+  ```powershell
+  winget install --id Microsoft.VisualStudio.2022.BuildTools -e `
+    --override "--quiet --wait --add Microsoft.VisualStudio.Workload.VCTools --includeRecommended"
+  ```
+
+  CMake itself is installed automatically by `bootstrap.ps1` via pip — no separate install.
+  Start with `-Backend cpu` (works with just the C++ tools). Only add `-Backend cuda`
+  (needs the CUDA Toolkit) or `-Backend vulkan` (needs the Vulkan SDK) once CPU works.
 - **macOS:** `xcode-select --install`, plus `brew install cmake git python`.
 - **Linux:** `sudo apt install -y build-essential cmake git python3 python3-venv`
   (add the Vulkan SDK / `libvulkan-dev` for integrated-GPU acceleration, or CUDA for NVIDIA).

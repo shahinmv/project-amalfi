@@ -36,7 +36,7 @@ python3 -m venv .venv && ./.venv/bin/python -m pip install -r requirements.txt
 - NVIDIA laptop → `cuda`. Apple Silicon → `metal`. Intel/AMD integrated → `vulkan`
   (fallback `cpu` if Vulkan SDK is missing). No usable GPU → `cpu`.
 - Windows: `./scripts/build_llamacpp.ps1 -Backend <cuda|vulkan|cpu>`.
-- Verify: `vendor/llama.cpp/build/bin/rpc-server` (or `rpc-server.exe`) exists.
+- Verify: `vendor/llama.cpp/build/bin/ggml-rpc-server` (or `ggml-rpc-server.exe`) exists.
 
 **All nodes must use the identical pinned tag** — RPC refuses mismatched builds.
 
@@ -75,10 +75,29 @@ only the coordinator loads it and streams layers to the rpc-servers.
 2. On the **coordinator**: `./scripts/start_coordinator.sh fleet.json`
    (Windows: `./scripts/start_coordinator.ps1 -Fleet fleet.json`).
 
-**Verify the layer mapping:** read the coordinator's startup log — it prints how many
-layers landed on each device. The device order equals the `--rpc` list order in
-`fleet.json`. If the layers-per-device don't match the intended `tensor_split` ordering,
-reorder the hosts in `fleet.json`'s `rpc`/`tensor_split` lists to match and restart.
+**Verify the device mapping (important — validated on a real build):**
+llama.cpp enumerates the coordinator's **own local GPU plus every RPC device**, and a
+device may appear more than once. List them first:
+
+```bash
+vendor/llama.cpp/build/bin/llama-server --rpc <rpc-list-from-fleet.json> --list-devices
+```
+
+You'll see entries like `MTL0` (local), `RPC0: <host>:<port>`, `RPC2: <host2>:<port2>`, …
+To distribute the model across **only the worker devices** with a deterministic split,
+pass the real RPC device names via `--device` and give `--tensor-split` the same number of
+values in the same order. Example validated on the loopback cell:
+
+```bash
+llama-server --model models/<gguf> \
+  --rpc <host1>:50052,<host2>:50052 \
+  --device RPC0,RPC2 --tensor-split 0.6,0.4 -ngl 999 \
+  --ctx-size 4096 --host 0.0.0.0 --port 8080
+```
+
+The `tensor_split` values in `fleet.json` are the intended proportions — map them onto the
+RPC devices you selected with `--list-devices`. If you omit `--device`, the coordinator's
+local GPU also receives a share (fine, but then add a leading split value for it).
 
 ## 7. Health check
 

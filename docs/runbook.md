@@ -34,22 +34,37 @@ Install: `git`, `cmake`, a C/C++ build toolchain, and `python3` (3.9+).
 - **Linux:** `sudo apt install -y build-essential cmake git python3 python3-venv`
   (add the Vulkan SDK / `libvulkan-dev` for integrated-GPU acceleration, or CUDA for NVIDIA).
 
-## Fast path (recommended): one-command bootstrap
+## Fast path (recommended)
 
-On each laptop, after installing the prereqs above and cloning the repo, run:
+### Windows — one command does everything (installs too)
+
+Open **PowerShell as Administrator** and run **one** of these:
+
+```powershell
+# fresh laptop (installs Git, clones, sets up):
+& ([scriptblock]::Create((irm https://raw.githubusercontent.com/shahinmv/project-amalfi/main/scripts/setup_windows.ps1))) -RpcHost <THIS-LAPTOP-LAN-IP>
+
+# already cloned the repo:
+powershell -ExecutionPolicy Bypass -File scripts\setup_windows.ps1 -RpcHost <THIS-LAPTOP-LAN-IP>
+```
+
+`setup_windows.ps1` installs Git + Python + the Visual Studio C++ Build Tools, clones the
+repo if needed, builds llama.cpp, and probes the laptop (writes `node_<host>.json`). It's
+idempotent — safe to re-run. Add `-StartWorker` to also launch the worker, or
+`-Backend cuda`/`-Backend vulkan` once CPU works. Find the LAN IP with `ipconfig`.
+
+> If a build error appears right after a *fresh* Build Tools install, reboot once and re-run.
+
+### macOS / Linux — one command (prereqs installed separately, see step 1)
 
 ```bash
 ./scripts/bootstrap.sh --backend auto --rpc-host <this-laptops-LAN-IP> --start-worker
-# Windows:  ./scripts/bootstrap.ps1 -Backend auto -RpcHost <IP> -StartWorker
 ```
 
-This creates the venv, installs deps, auto-detects the backend, builds the pinned
-llama.cpp, probes the machine (writing `node_<host>.json`), and — with `--start-worker` —
-launches this node's rpc-server. Omit `--start-worker` to just set up + probe.
-
-Then on the **coordinator only**, merge every `node_*.json` into a single `nodes.json`
-array and continue from step 4. Steps 2–3 below are the manual equivalent of what
-bootstrap does.
+Both create the venv, install deps + cmake, build the pinned llama.cpp, and probe the
+machine. Then on the **coordinator only**, merge every `node_*.json` into `nodes.json`
+(`scripts/merge_nodes.py`) and continue from step 4. Steps 2–3 below are the manual
+equivalent of what these scripts do.
 
 ## 2. Build llama.cpp (every laptop, same pinned tag)
 

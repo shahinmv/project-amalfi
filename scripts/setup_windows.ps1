@@ -29,6 +29,19 @@ function Refresh-Path {
   $env:Path = [Environment]::GetEnvironmentVariable("Path","Machine") + ";" +
               [Environment]::GetEnvironmentVariable("Path","User")
 }
+function Test-HasCommand($name) { [bool](Get-Command $name -ErrorAction SilentlyContinue) }
+function Test-HasPython {
+  if (-not (Test-HasCommand python)) { return $false }
+  try { return ((python --version 2>&1) -match 'Python 3\.') } catch { return $false }
+}
+function Test-HasVCTools {
+  # The C++ toolset specifically (not just "some VS installed").
+  $vsw = "${env:ProgramFiles(x86)}\Microsoft Visual Studio\Installer\vswhere.exe"
+  if (-not (Test-Path $vsw)) { return $false }
+  $p = & $vsw -products * -requires Microsoft.VisualStudio.Component.VC.Tools.x86.x64 `
+        -property installationPath 2>$null
+  return [bool]$p
+}
 
 if (-not (Test-Admin)) {
   Write-Host "Must run as Administrator (to install the C++ Build Tools)." -ForegroundColor Red
@@ -45,13 +58,22 @@ Set-ExecutionPolicy -ExecutionPolicy Bypass -Scope Process -Force
 try { [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12 } catch {}
 
 $wg = @("--accept-source-agreements","--accept-package-agreements","--silent")
+
 Write-Host "== [1/6] Git ==" -ForegroundColor Cyan
-winget install --id Git.Git -e @wg 2>$null | Out-Null
+if (Test-HasCommand git) { Write-Host ">> already installed, skipping" }
+else { winget install --id Git.Git -e @wg 2>$null | Out-Null; Refresh-Path }
+
 Write-Host "== [2/6] Python 3.12 ==" -ForegroundColor Cyan
-winget install --id Python.Python.3.12 -e @wg 2>$null | Out-Null
-Write-Host "== [3/6] Visual Studio C++ Build Tools (large download, please wait) ==" -ForegroundColor Cyan
-winget install --id Microsoft.VisualStudio.2022.BuildTools -e --accept-source-agreements --accept-package-agreements `
-  --override "--quiet --wait --add Microsoft.VisualStudio.Workload.VCTools --includeRecommended" 2>$null | Out-Null
+if (Test-HasPython) { Write-Host ">> already installed, skipping" }
+else { winget install --id Python.Python.3.12 -e @wg 2>$null | Out-Null; Refresh-Path }
+
+Write-Host "== [3/6] Visual Studio C++ Build Tools ==" -ForegroundColor Cyan
+if (Test-HasVCTools) { Write-Host ">> already installed, skipping" }
+else {
+  Write-Host ">> installing (large download, several minutes, please wait)..."
+  winget install --id Microsoft.VisualStudio.2022.BuildTools -e --accept-source-agreements --accept-package-agreements `
+    --override "--quiet --wait --add Microsoft.VisualStudio.Workload.VCTools --includeRecommended" 2>$null | Out-Null
+}
 
 Refresh-Path
 foreach ($t in @("git","python")) {

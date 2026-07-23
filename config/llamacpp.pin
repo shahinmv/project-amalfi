@@ -1,0 +1,6 @@
+# Pinned llama.cpp release. MUST be identical on every node (RPC requires matching builds).
+# Verify the tag exists before building:
+#   git ls-remote --tags https://github.com/ggml-org/llama.cpp | grep <tag>
+# Update this to the latest stable release your team validates. Format: bNNNN
+LLAMACPP_REF=b10103
+LLAMACPP_REPO=https://github.com/ggml-org/llama.cpp

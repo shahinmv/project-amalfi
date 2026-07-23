@@ -1,0 +1,10 @@
+__pycache__/
+*.pyc
+.venv/
+venv/
+models/
+*.gguf
+fleet.json
+nodes.json
+*.log
+.DS_Store

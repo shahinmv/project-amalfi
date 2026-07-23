@@ -1,0 +1,14 @@
+{
+  "qwen2.5-32b-q4": {
+    "gguf": "qwen2.5-32b-instruct-q4_k_m.gguf",
+    "params_b": 32, "size_gb": 19.0, "kv_per_seq_gb": 0.5, "ctx_size": 4096
+  },
+  "gemma-3-27b-q4": {
+    "gguf": "gemma-3-27b-it-q4_k_m.gguf",
+    "params_b": 27, "size_gb": 16.5, "kv_per_seq_gb": 0.45, "ctx_size": 4096
+  },
+  "qwen3-30b-a3b-q4": {
+    "gguf": "qwen3-30b-a3b-q4_k_m.gguf",
+    "params_b": 30, "size_gb": 18.0, "kv_per_seq_gb": 0.4, "ctx_size": 4096
+  }
+}

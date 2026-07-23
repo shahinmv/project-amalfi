@@ -1,0 +1,6 @@
+[
+  {"hostname":"laptop-1","os":"Windows","arch":"x86_64","cpu_cores":8,"total_ram_gb":16.0,"free_ram_gb":11.0,"gpu":{"type":"none","name":"cpu","vram_gb":0.0},"mem_bandwidth_gbps":38.0,"rpc_host":"192.168.1.21","rpc_port":50052},
+  {"hostname":"laptop-2","os":"Windows","arch":"x86_64","cpu_cores":8,"total_ram_gb":16.0,"free_ram_gb":11.0,"gpu":{"type":"cuda","name":"RTX 3050 Laptop","vram_gb":4.0},"mem_bandwidth_gbps":40.0,"rpc_host":"192.168.1.22","rpc_port":50052},
+  {"hostname":"mac-3","os":"Darwin","arch":"arm64","cpu_cores":8,"total_ram_gb":16.0,"free_ram_gb":11.5,"gpu":{"type":"metal","name":"Apple Silicon GPU","vram_gb":0.0},"mem_bandwidth_gbps":90.0,"rpc_host":"192.168.1.23","rpc_port":50052},
+  {"hostname":"laptop-4","os":"Linux","arch":"x86_64","cpu_cores":8,"total_ram_gb":16.0,"free_ram_gb":12.0,"gpu":{"type":"vulkan","name":"Intel Iris Xe","vram_gb":0.0},"mem_bandwidth_gbps":42.0,"rpc_host":"192.168.1.24","rpc_port":50052}
+]

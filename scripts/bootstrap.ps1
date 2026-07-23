@@ -15,6 +15,8 @@ Write-Host "== [1/4] python venv + deps =="
 if (-not (Test-Path .venv)) { python -m venv .venv }
 & .\.venv\Scripts\python.exe -m pip install -q --upgrade pip
 & .\.venv\Scripts\python.exe -m pip install -q -r requirements.txt
+# cmake as a pip package so no separate system CMake install is needed
+& .\.venv\Scripts\python.exe -m pip install -q cmake
 
 if ($Backend -eq "auto") {
   $Backend = (& .\.venv\Scripts\python.exe scripts/probe.py --print-backend).Trim()

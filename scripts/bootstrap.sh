@@ -22,6 +22,8 @@ echo "== [1/4] python venv + deps =="
 [ -d .venv ] || python3 -m venv .venv
 ./.venv/bin/python -m pip install -q --upgrade pip
 ./.venv/bin/python -m pip install -q -r requirements.txt
+# cmake as a pip package so no separate system CMake install is needed
+./.venv/bin/python -m pip install -q cmake
 
 if [ "$BACKEND" = "auto" ]; then
   BACKEND="$(./.venv/bin/python scripts/probe.py --print-backend)"

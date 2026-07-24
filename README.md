@@ -35,6 +35,19 @@ python3 -m venv .venv && ./.venv/bin/python -m pip install -r requirements.txt
 ./scripts/loopback_demo.sh <model.gguf>    # 2 workers + coordinator on localhost
 ```
 
+## Live dashboard (macOS coordinator)
+
+Visualize real per-node data transfer while the cell runs:
+
+```bash
+./.venv/bin/python dashboard/server.py --port 8090      # on the coordinator Mac
+# open http://<coordinator-ip>:8090
+```
+
+A background thread samples the coordinator's per-connection byte counters (`nettop`) and
+the page animates particles flowing coordinator↔each worker in proportion to the live
+bytes/sec — activations out, computed results back. Nodes light up only while generating.
+
 ## Security
 
 RPC mode is **LAN-only and unauthenticated**. Never expose rpc-server ports to the

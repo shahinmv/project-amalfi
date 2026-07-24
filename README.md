@@ -35,6 +35,20 @@ python3 -m venv .venv && ./.venv/bin/python -m pip install -r requirements.txt
 ./scripts/loopback_demo.sh <model.gguf>    # 2 workers + coordinator on localhost
 ```
 
+## Auto-form the cell (flexible / availability-aware)
+
+Instead of hand-listing node IPs, let the coordinator discover whoever's online and form the
+best cell automatically. Start workers on any machines you want (`start_worker.*`), then:
+
+```bash
+./.venv/bin/python scripts/launch_cell.py --model qwen2.5-7b-q4
+```
+
+It reads `config/fleet_registry.json` (candidate workers + capabilities), pings each, keeps
+the reachable ones, enumerates their compute devices, computes a **capability-weighted split**
+(faster nodes get more layers), writes `dashboard/cell.json`, and launches the coordinator.
+Re-run it anytime to re-form the cell for the machines that happen to be up — 2 nodes, 4, or 1.
+
 ## Live dashboard (macOS coordinator)
 
 Visualize real per-node data transfer while the cell runs:

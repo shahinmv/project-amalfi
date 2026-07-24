@@ -1,0 +1,6 @@
+[
+  {"host": "127.0.0.1",     "port": 50052, "name": "This Mac (M3 Pro)",     "backend": "metal", "bw": 65,  "cores": 11, "ram_gb": 19.3},
+  {"host": "192.168.1.89",  "port": 50052, "name": "Mac Mini (M1)",         "backend": "metal", "bw": 43,  "cores": 8,  "ram_gb": 8.6},
+  {"host": "192.168.1.140", "port": 50052, "name": "Laptop 1 (i5)",         "backend": "cpu",   "bw": 12,  "cores": 12, "ram_gb": 16.8},
+  {"host": "192.168.1.236", "port": 50052, "name": "Laptop 2 (Ryzen 7)",    "backend": "cpu",   "bw": 6.5, "cores": 16, "ram_gb": 14.9}
+]

@@ -1,26 +1,30 @@
 #!/usr/bin/env python3
-"""Amalfi live dashboard — visualizes real per-node data transfer in the running cell.
+"""Amalfi live dashboard — real per-node data transfer + cell metadata + a token-rate probe.
 
-Serves index.html and a /state JSON endpoint. A background thread samples the
-coordinator's per-connection byte counters (via `nettop -x`, which is slow ~5s) and
-caches live bytes/sec to each worker; /state returns the cache instantly so the UI
-animates the actual relay traffic. macOS only.
+Endpoints:
+  /            index.html
+  /state       JSON: live per-node bytes/sec (sampled via `nettop -x`, background thread),
+               enriched with cell metadata (dashboard/cell.json), health, cell summary.
+  /generate    runs one short generation on the coordinator and returns measured tok/s.
 
-Run:  ./.venv/bin/python dashboard/server.py [--port 8090] [--api http://127.0.0.1:8080]
-Open: http://<this-mac-ip>:<port>
+macOS only (uses nettop). Run:
+  ./.venv/bin/python dashboard/server.py [--port 8090] [--api http://127.0.0.1:8080]
 """
 import argparse, json, os, re, subprocess, threading, time, urllib.request
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
 HERE = os.path.dirname(os.path.abspath(__file__))
-LABELS = {
-    "127.0.0.1":     ("This Mac (worker)", "metal"),
-    "192.168.1.89":  ("Mac Mini",          "metal"),
-    "192.168.1.140": ("Laptop 1",          "cpu"),
-    "192.168.1.236": ("Laptop 2",          "cpu"),
-}
 RPC_PORT = "50052"
 _rates, _lock = {}, threading.Lock()
+_FALLBACK = {"127.0.0.1": ("This Mac (worker)", "metal")}
+
+
+def _cell():
+    try:
+        with open(os.path.join(HERE, "cell.json")) as f:
+            return json.load(f)
+    except Exception:
+        return {"nodes": {}}
 
 
 def _coord_pid():
@@ -32,7 +36,6 @@ def _coord_pid():
 
 
 def _sample(pid):
-    """remote_ip -> (bytes_in, bytes_out) for the coordinator's RPC connections."""
     res = {}
     try:
         out = subprocess.check_output(
@@ -64,9 +67,8 @@ def _sampler_loop():
         new = {}
         for ip, (bi, bo) in conns.items():
             pbi, pbo = prev.get(ip, (bi, bo))
-            name, backend = LABELS.get(ip, (ip, "?"))
             new[ip] = {
-                "ip": ip, "name": name, "backend": backend,
+                "ip": ip,
                 "in_bps": max(0.0, (bi - pbi) / dt) if dt and dt > 0 else 0.0,
                 "out_bps": max(0.0, (bo - pbo) / dt) if dt and dt > 0 else 0.0,
                 "tot_in": bi, "tot_out": bo,
@@ -79,8 +81,20 @@ def _sampler_loop():
 
 
 def _state(api):
+    cell = _cell()
+    meta = cell.get("nodes", {})
     with _lock:
-        nodes = list(_rates.values())
+        live = {ip: dict(v) for ip, v in _rates.items()}
+    nodes = []
+    for ip, v in live.items():
+        m = meta.get(ip, {})
+        name, backend = _FALLBACK.get(ip, (ip, "?"))
+        v.update({
+            "name": m.get("name", name), "backend": m.get("backend", backend),
+            "pct": m.get("pct"), "cores": m.get("cores"), "ram_gb": m.get("ram_gb"),
+            "bw": m.get("bw"),
+        })
+        nodes.append(v)
     nodes.sort(key=lambda n: (n["ip"] != "127.0.0.1", n["ip"]))
     healthy = False
     try:
@@ -88,8 +102,35 @@ def _state(api):
         healthy = True
     except Exception:
         pass
-    return {"healthy": healthy, "running": _coord_pid() is not None,
-            "nodes": nodes, "ts": time.time()}
+    pooled = sum(n.get("ram_gb") or 0 for n in nodes)
+    return {
+        "healthy": healthy, "running": _coord_pid() is not None, "nodes": nodes,
+        "cell": {"model": cell.get("model"), "quant": cell.get("quant"),
+                 "model_size_gb": cell.get("model_size_gb"), "ctx_size": cell.get("ctx_size"),
+                 "node_count": len(nodes), "pooled_ram_gb": round(pooled, 1)},
+        "ts": time.time(),
+    }
+
+
+def _generate(api):
+    payload = json.dumps({
+        "model": "local",
+        "messages": [{"role": "user", "content": "Write two sentences about distributed systems."}],
+        "max_tokens": 64, "temperature": 0.4,
+    }).encode()
+    req = urllib.request.Request(api + "/v1/chat/completions", data=payload,
+                                 headers={"Content-Type": "application/json"})
+    t0 = time.time()
+    try:
+        with urllib.request.urlopen(req, timeout=120) as r:
+            d = json.load(r)
+        dt = time.time() - t0
+        toks = d.get("usage", {}).get("completion_tokens", 0)
+        return {"ok": True, "tok_s": round(toks / dt, 2) if dt > 0 else 0.0,
+                "tokens": toks, "latency_s": round(dt, 2),
+                "text": d["choices"][0]["message"]["content"]}
+    except Exception as e:
+        return {"ok": False, "error": str(e)}
 
 
 def make_handler(api):
@@ -97,23 +138,26 @@ def make_handler(api):
         def log_message(self, *a):
             pass
 
-        def do_GET(self):
-            if self.path.startswith("/state"):
-                body = json.dumps(_state(api)).encode()
-                ctype = "application/json"
-            else:
-                try:
-                    with open(os.path.join(HERE, "index.html"), "rb") as fh:
-                        body = fh.read()
-                except OSError:
-                    body = b"index.html missing"
-                ctype = "text/html; charset=utf-8"
+        def _send(self, body, ctype="application/json"):
             self.send_response(200)
             self.send_header("Content-Type", ctype)
             self.send_header("Access-Control-Allow-Origin", "*")
             self.send_header("Content-Length", str(len(body)))
             self.end_headers()
             self.wfile.write(body)
+
+        def do_GET(self):
+            if self.path.startswith("/state"):
+                self._send(json.dumps(_state(api)).encode())
+            elif self.path.startswith("/generate"):
+                self._send(json.dumps(_generate(api)).encode())
+            else:
+                try:
+                    with open(os.path.join(HERE, "index.html"), "rb") as fh:
+                        body = fh.read()
+                except OSError:
+                    body = b"index.html missing"
+                self._send(body, "text/html; charset=utf-8")
     return H
 
 

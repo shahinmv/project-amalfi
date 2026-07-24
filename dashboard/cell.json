@@ -1,0 +1,12 @@
+{
+  "model": "Qwen2.5-7B-Instruct",
+  "quant": "Q4_K_M",
+  "model_size_gb": 4.68,
+  "ctx_size": 4096,
+  "nodes": {
+    "127.0.0.1":     {"name": "This Mac (M3 Pro)", "backend": "metal", "pct": 40, "cores": 11, "ram_gb": 19.3, "bw": 65},
+    "192.168.1.89":  {"name": "Mac Mini (M1)",     "backend": "metal", "pct": 60, "cores": 8,  "ram_gb": 8.6,  "bw": 43},
+    "192.168.1.140": {"name": "Laptop 1 (i5)",     "backend": "cpu",   "pct": 0,  "cores": 12, "ram_gb": 16.8, "bw": 12},
+    "192.168.1.236": {"name": "Laptop 2 (Ryzen 7)","backend": "cpu",   "pct": 0,  "cores": 16, "ram_gb": 14.9, "bw": 6.5}
+  }
+}

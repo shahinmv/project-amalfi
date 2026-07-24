@@ -49,6 +49,22 @@ the reachable ones, enumerates their compute devices, computes a **capability-we
 (faster nodes get more layers), writes `dashboard/cell.json`, and launches the coordinator.
 Re-run it anytime to re-form the cell for the machines that happen to be up — 2 nodes, 4, or 1.
 
+## Self-healing cell (auto-form + auto-recover)
+
+Instead of running `launch_cell.py` by hand, run the supervisor once — it watches the fleet
+and (re)forms the cell automatically as workers appear, drop, or the coordinator dies:
+
+```bash
+./.venv/bin/python scripts/supervisor.py --model qwen2.5-7b-q4
+```
+
+It auto-forms when workers come online, re-forms over survivors when one drops, and pulls in
+new nodes when they join (debounced, with a load grace period). This is the pragmatic
+"reroute-on-drop" for the llama.cpp RPC stack — it recovers by re-forming the cell. (A
+Petals-grade network hot-swaps individual layer-blocks instead; see `docs/productization.md`.)
+Note: this keeps the *cell* healthy on the coordinator side; keeping each worker alive across
+reboots needs the per-machine auto-start service (roadmap item).
+
 ## Live dashboard (macOS coordinator)
 
 Visualize real per-node data transfer while the cell runs:
